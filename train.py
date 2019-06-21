@@ -24,12 +24,12 @@ import torch.optim as optim
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=100, help="number of epochs")
-    parser.add_argument("--batch_size", type=int, default=8, help="size of each image batch")
-    parser.add_argument("--gradient_accumulations", type=int, default=2, help="number of gradient accums before step")
-    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--data_config", type=str, default="config/coco.data", help="path to data config file")
-    parser.add_argument("--pretrained_weights", type=str, help="if specified starts from checkpoint model")
+    parser.add_argument("--epochs", type=int, default=150, help="number of epochs")
+    parser.add_argument("--batch_size", type=int, default=16, help="size of each image batch")
+    parser.add_argument("--gradient_accumulations", type=int, default=4, help="number of gradient accums before step")
+    parser.add_argument("--data_config", type=str, default="config/custom.data", help="path to data config file")
+    parser.add_argument("--pretrained_weights", type=str, default="checkpoints/yolov3_ckpt_69.pth",
+                        help="if specified starts from checkpoint model")
     parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval between saving model weights")
@@ -53,15 +53,13 @@ if __name__ == "__main__":
     class_names = load_classes(data_config["names"])
 
     # Initiate model
-    model = Darknet(opt.model_def).to(device)
+    model = Darknet().to(device)
     model.apply(weights_init_normal)
 
     # If specified we start from checkpoint
     if opt.pretrained_weights:
         if opt.pretrained_weights.endswith(".pth"):
             model.load_state_dict(torch.load(opt.pretrained_weights))
-        else:
-            model.load_darknet_weights(opt.pretrained_weights)
 
     # Get dataloader
     dataset = ListDataset(train_path, augment=True, multiscale=opt.multiscale_training)
@@ -74,7 +72,7 @@ if __name__ == "__main__":
         collate_fn=dataset.collate_fn,
     )
 
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
 
     metrics = [
         "grid_size",
@@ -116,7 +114,7 @@ if __name__ == "__main__":
 
             log_str = "\n---- [Epoch %d/%d, Batch %d/%d] ----\n" % (epoch, opt.epochs, batch_i, len(dataloader))
 
-            metric_table = [["Metrics", *[f"YOLO Layer {i}" for i in range(len(model.yolo_layers))]]]
+            metric_table = [["Metrics", *[f"YOLO Layer {i}" for i in range(2)]]]
 
             # Log metrics at each YOLO layer
             for i, metric in enumerate(metrics):
@@ -131,7 +129,7 @@ if __name__ == "__main__":
                 for j, yolo in enumerate(model.yolo_layers):
                     for name, metric in yolo.metrics.items():
                         if name != "grid_size":
-                            tensorboard_log += [(f"{name}_{j+1}", metric)]
+                            tensorboard_log += [(f"{name}_{j + 1}", metric)]
                 tensorboard_log += [("loss", loss.item())]
                 logger.list_of_scalars_summary(tensorboard_log, batches_done)
 
