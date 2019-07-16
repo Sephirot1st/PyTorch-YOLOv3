@@ -170,7 +170,7 @@ class Darknet(nn.Module):
         self.img_size = img_size
         self.seen = 0
         self.header_info = np.array([0, 0, 0, self.seen, 0], dtype=np.int32)
-        self.efficientnet = EfficientNet.from_pretrained("efficientnet-b0")
+        self.efficientnet = EfficientNet.from_name("efficientnet-b0")
 
         self.conv_linear_75_1 = nn.Sequential(
             nn.Conv2d(in_channels=320, out_channels=75, kernel_size=(1, 1), stride=(1, 1)),
